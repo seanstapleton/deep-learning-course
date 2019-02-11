@@ -424,18 +424,13 @@ def conv_backward(dout, cache):
     
     dx = np.zeros((N,C,A+HH-1,B+WW-1))
     dw = np.zeros((F,C,H-A+1,W-B+1))
-    
-    print(dx.shape, dw.shape)
-    print(x.shape, w.shape)
 
-#     w_flipped = np.flip(np.flip(w, 2), 3)
     for n in range(N):
         for c in range(C):
             for f in range(F):
                 padded = np.pad(w[f][c], ((A-1,),(B-1,)), mode='constant')
                 dx[n][c] += conv2D(padded, dout[n][f])
-                dw[f][c] += conv2D(x[n][c],np.flip(dout[n][f]))
-#     dw = np.flip(np.flip(dw, 2), 3)
+                dw[f][c] += conv2D(x[n][c], np.flip(dout[n][f]))
             
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -509,33 +504,52 @@ def svm_loss(x, y):
 
   return loss, dx
 
-
 def logistic_loss(x, y):
-  """
-  Computes the loss and gradient for binary classification with logistic 
-  regression.
-  Inputs:
-  - x: Input data, of shape (N,) where x[i] is the logit for the ith input.
-  - y: Vector of labels, of shape (N,) where y[i] is the label for x[i]
-  Returns a tuple of:
-  - loss: Scalar giving the loss
-  - dx: Gradient of the loss with respect to x
-  """
+    """
+    Computes the loss and gradient for binary classification with logistic 
+    regression.
+    Inputs:
+    - x: Input data, of shape (N,) where x[i] is the logit for the ith input.
+    - y: Vector of labels, of shape (N,) where y[i] is the label for x[i]
+    Returns a tuple of:
+    - loss: Scalar giving the loss
+    - dx: Gradient of the loss with respect to x
+    """
 
-  return loss, dx
+    x = x.reshape((x.shape[0],1))
+    y =  y.reshape((y.shape[0],1))
+    ln2 = np.log(2)
+    loss = np.sum(np.log(1+np.exp(-y*x))/ln2)
+    
+    dx = (-y)/(ln2*np.exp(x*y)+ln2)
+    
+    return loss, dx
 
+def softmax(x):
+    num = np.exp(x)
+    denom = np.sum(num)
+    return num/denom
 
 def softmax_loss(x, y):
-  """
-  Computes the loss and gradient for softmax classification.
-  Inputs:
-  - x: Input data, of shape (N, C) where x[i, j] is the score for the jth class
+    """
+    Computes the loss and gradient for softmax classification.
+    Inputs:
+    - x: Input data, of shape (N, C) where x[i, j] is the score for the jth class
     for the ith input.
-  - y: Vector of labels, of shape (N,) where y[i] is the label for x[i] and
+    - y: Vector of labels, of shape (N,) where y[i] is the label for x[i] and
     0 <= y[i] < C
-  Returns a tuple of:
-  - loss: Scalar giving the loss
-  - dx: Gradient of the loss with respect to x
-  """
-
-  return loss, dx
+    Returns a tuple of:
+    - loss: Scalar giving the loss
+    - dx: Gradient of the loss with respect to x
+    """
+    y = y.reshape((y.shape[0],1))
+    
+    p = softmax(x)
+    N = x.shape[0]
+    
+    log_likelihood = y*np.log(p)
+    loss = -np.sum(log_likelihood) / N
+    
+    dx = np.zeros(x.shape)
+    
+    return loss, dx

@@ -138,23 +138,20 @@ print('dx error: ', rel_error(dx_num, dx))
 
 
 
-# # Softmax loss
-# np.random.seed(498)
-# num_classes, num_inputs = 10, 50
-# x = 0.001 * np.random.randn(num_inputs, num_classes)
-# y = np.random.randint(num_classes, size=num_inputs)
+# Softmax loss
+np.random.seed(498)
+num_classes, num_inputs = 10, 50
+x = 0.001 * np.random.randn(num_inputs, num_classes)
+y = np.random.randint(num_classes, size=num_inputs)
 
 
+dx_num = eval_numerical_gradient(lambda x: softmax_loss(x, y)[0], x, verbose=False)
+loss, dx = softmax_loss(x, y)
 
-# dx_num = eval_numerical_gradient(lambda x: softmax_loss(x, y)[0], x, verbose=False)
-# loss, dx = softmax_loss(x, y)
-
-# # Test softmax_loss function. Loss should be 2.3 and dx error should be 1e-8
-# print('\nTesting softmax_loss:')
-# print('loss: ', loss)
-# print('dx error: ', rel_error(dx_num, dx))
-
-
+# Test softmax_loss function. Loss should be 2.3 and dx error should be 1e-8
+print('\nTesting softmax_loss:')
+print('loss: ', loss)
+print('dx error: ', rel_error(dx_num, dx))
 
 
 # Logistic loss
@@ -174,13 +171,23 @@ print('\nTesting logistic_loss:')
 print('loss: ', loss)
 print('dx error: ', rel_error(dx_num, dx))
 
-# dx_num = eval_numerical_gradient(lambda x: logistic_loss(x, y)[0], x, verbose=False)
-# loss, dx = logistic_loss(x, y)
 
-# # Test logistic_loss function. Loss should be 0.693 and dx error should be 6e-10
-# print('\nTesting logistic_loss:')
-# print('loss: ', loss)
-# print('dx error: ', rel_error(dx_num, dx))
+# Logistic loss
+np.random.seed(498)
+num_classes, num_inputs = 1, 50
+x = 0.001 * np.random.randn(num_inputs, num_classes)
+y = np.random.randint(num_classes + 1, size=num_inputs)
+for ite in range(num_inputs):
+    if y[ite] == 0:
+        y[ite] = -1
+
+dx_num = eval_numerical_gradient(lambda x: logistic_loss(x, y)[0], x, verbose=False)
+loss, dx = logistic_loss(x, y)
+
+# Test logistic_loss function. Loss should be 0.693 and dx error should be 6e-10
+print('\nTesting logistic_loss:')
+print('loss: ', loss)
+print('dx error: ', rel_error(dx_num, dx))
 
 # SVM loss
 np.random.seed(498)
@@ -322,7 +329,7 @@ dx, dw = conv_backward(dout, cache)
 
 # print('dx_num:', np.array2string(dx_num, separator=','))
 # print('dw_num:', np.array2string(dw_num, separator=','))
-print('dw:', dw)
+# print('dw:', dw)
 # print('dx:', dx)
 
 print('\nTesting conv_backward function:')
