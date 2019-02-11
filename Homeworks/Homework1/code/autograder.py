@@ -138,21 +138,21 @@ print('dx error: ', rel_error(dx_num, dx))
 
 
 
-# Softmax loss
-np.random.seed(498)
-num_classes, num_inputs = 10, 50
-x = 0.001 * np.random.randn(num_inputs, num_classes)
-y = np.random.randint(num_classes, size=num_inputs)
+# # Softmax loss
+# np.random.seed(498)
+# num_classes, num_inputs = 10, 50
+# x = 0.001 * np.random.randn(num_inputs, num_classes)
+# y = np.random.randint(num_classes, size=num_inputs)
 
 
 
-dx_num = eval_numerical_gradient(lambda x: softmax_loss(x, y)[0], x, verbose=False)
-loss, dx = softmax_loss(x, y)
+# dx_num = eval_numerical_gradient(lambda x: softmax_loss(x, y)[0], x, verbose=False)
+# loss, dx = softmax_loss(x, y)
 
-# Test softmax_loss function. Loss should be 2.3 and dx error should be 1e-8
-print('\nTesting softmax_loss:')
-print('loss: ', loss)
-print('dx error: ', rel_error(dx_num, dx))
+# # Test softmax_loss function. Loss should be 2.3 and dx error should be 1e-8
+# print('\nTesting softmax_loss:')
+# print('loss: ', loss)
+# print('dx error: ', rel_error(dx_num, dx))
 
 
 
@@ -174,7 +174,13 @@ print('\nTesting logistic_loss:')
 print('loss: ', loss)
 print('dx error: ', rel_error(dx_num, dx))
 
+# dx_num = eval_numerical_gradient(lambda x: logistic_loss(x, y)[0], x, verbose=False)
+# loss, dx = logistic_loss(x, y)
 
+# # Test logistic_loss function. Loss should be 0.693 and dx error should be 6e-10
+# print('\nTesting logistic_loss:')
+# print('loss: ', loss)
+# print('dx error: ', rel_error(dx_num, dx))
 
 # SVM loss
 np.random.seed(498)
@@ -314,6 +320,11 @@ dw_num = eval_numerical_gradient_array(lambda w: conv_forward(x, w)[0], w, dout)
 _, cache = conv_forward(x, w)
 dx, dw = conv_backward(dout, cache)
 
+# print('dx_num:', np.array2string(dx_num, separator=','))
+# print('dw_num:', np.array2string(dw_num, separator=','))
+print('dw:', dw)
+# print('dx:', dx)
+
 print('\nTesting conv_backward function:')
 # The errors should be around 5e-8
 print('dx error: ', rel_error(dx_num, dx))
@@ -323,48 +334,47 @@ print('dw error: ', rel_error(dw_num, dw))
 
 
 
-# max_pool forward
-x = np.linspace(-0.1, 2.5, num=49).reshape(1,1,7,7)
-pool_param = {
-    'pool_height': 3,
-    'pool_width': 3,
-    'stride': 2
-}
+# # max_pool forward
+# x = np.linspace(-0.1, 2.5, num=49).reshape(1,1,7,7)
+# pool_param = {
+#     'pool_height': 3,
+#     'pool_width': 3,
+#     'stride': 2
+# }
 
 
-out, _ = max_pool_forward(x, pool_param)
-correct_out = np.array([[[[0.76666667, 0.875,      0.98333333],
-   [1.525,      1.63333333, 1.74166667],
-   [2.28333333, 2.39166667, 2.5       ]]]])
+# out, _ = max_pool_forward(x, pool_param)
+# correct_out = np.array([[[[0.76666667, 0.875,      0.98333333],
+#    [1.525,      1.63333333, 1.74166667],
+#    [2.28333333, 2.39166667, 2.5       ]]]])
 
-# Compare your output with ours. The error should be around 2e-9.
-print('\nTesting max_pooling_forward function:')
-print('difference: ', rel_error(out, correct_out))
-
-
-
+# # Compare your output with ours. The error should be around 2e-9.
+# print('\nTesting max_pooling_forward function:')
+# print('difference: ', rel_error(out, correct_out))
 
 
 
 
-# max_pool backward
-np.random.seed(498)
-x = np.random.randn(3, 2, 7, 7)
-pool_param = {
-    'pool_height': 3,
-    'pool_width': 3,
-    'stride': 2
-}
-
-dout = np.random.randn(3, 2, 3, 3)
-
-dx_num = eval_numerical_gradient_array(lambda x: max_pool_forward(x, pool_param)[0], x, dout)
 
 
-_, cache = max_pool_forward(x, pool_param)
-dx = max_pool_backward(dout, cache)
+
+# # max_pool backward
+# np.random.seed(498)
+# x = np.random.randn(3, 2, 7, 7)
+# pool_param = {
+#     'pool_height': 3,
+#     'pool_width': 3,
+#     'stride': 2
+# }
+
+# dout = np.random.randn(3, 2, 3, 3)
+
+# dx_num = eval_numerical_gradient_array(lambda x: max_pool_forward(x, pool_param)[0], x, dout)
+
+
+# _, cache = max_pool_forward(x, pool_param)
+# dx = max_pool_backward(dout, cache)
 
 print('\nTesting max_pooling_backward function:')
 # The errors should be around 3e-12
 print('dx error: ', rel_error(dx_num, dx))
-
