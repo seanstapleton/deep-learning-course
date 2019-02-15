@@ -52,9 +52,10 @@ def fc_backward(dout, cache):
     ###########################################################################
     # TODO: Implement the affine backward pass.                               #
     ###########################################################################
+    N, d_out = dout.shape
     dx = np.matmul(dout, np.transpose(w))
     dw = np.matmul(np.transpose(x), dout)
-    db = np.matmul(np.ones((1,dout.shape[0])), dout)
+    db = np.matmul(np.ones((1,dout.shape[0])), dout).reshape((-1,))
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -364,6 +365,16 @@ def conv3D(a,b):
     conv_steps = np.lib.stride_tricks.as_strided(a,out_shape,a.strides+a.strides)
     return np.einsum('ijk,abcijk->abc',np.flip(b),conv_steps)
 
+def filt2D(a,b):
+    if b.shape[0] > a.shape[0]:
+        return filt2D(b,a)
+    return conv2D(a,np.flip(b))
+
+def filt3D(a,b):
+    if b.shape[0] > a.shape[0]:
+        return filt3D(b,a)
+    return conv3D(a,np.flip(b))
+
 def conv_forward(x, w):
     """
     The input consists of N data points, each with C channels, height H and
@@ -390,18 +401,18 @@ def conv_forward(x, w):
     N, C, H, W = x.shape
     F, C, HH, WW = w.shape
     out = np.zeros((N,F,H-HH+1,W-WW+1))
+    
+    w = np.flip(w)
 
     for n in range(N):
         for f in range(F):
-            out[n][f] = conv3D(x[n],w[f])
+            out[n][f] = filt3D(x[n],w[f])
     
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
     cache = (x, w)
     return out, cache
-
-from scipy import signal
 
 def conv_backward(dout, cache):
     """
@@ -431,6 +442,7 @@ def conv_backward(dout, cache):
                 padded = np.pad(w[f][c], ((A-1,),(B-1,)), mode='constant')
                 dx[n][c] += conv2D(padded, dout[n][f])
                 dw[f][c] += conv2D(x[n][c], np.flip(dout[n][f]))
+    dw = np.flip(dw)
             
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -461,7 +473,24 @@ def max_pool_forward(x, pool_param):
     ###########################################################################
     # TODO: Implement the max-pooling forward pass                            #
     ###########################################################################
-    pass
+        
+    N, C, H, W  = x.shape
+    pool_height, pool_width = pool_param['pool_height'], pool_param['pool_width']
+    stride = pool_param['stride']
+    
+    HH = 1 + (H - pool_height) // stride
+    WW = 1 + (W - pool_width) // stride
+    x_strides = x[0][0].strides
+    strides = tuple(np.array(x_strides)*stride)
+    
+    out = np.zeros((N,C,HH,WW))
+    
+    for n in range(N):
+        for c in range(C):
+            out_shape = (HH,WW,pool_height,pool_width)
+            pool_blocks = np.lib.stride_tricks.as_strided(x[n][c],out_shape,strides+x_strides)
+            out[n][c] = np.max(pool_blocks, axis=(2,3))
+                
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -484,7 +513,35 @@ def max_pool_backward(dout, cache):
     ###########################################################################
     # TODO: Implement the max-pooling backward pass                           #
     ###########################################################################
-    pass
+    x, pool_param = cache
+    N, C, H, W  = x.shape
+    pool_height, pool_width = pool_param['pool_height'], pool_param['pool_width']
+    stride = pool_param['stride']
+    
+    HH = 1 + (H - pool_height) // stride
+    WW = 1 + (W - pool_width) // stride
+    x_strides = x[0][0].strides
+    strides = tuple(np.array(x_strides)*stride)
+    
+    dx = np.zeros(x.shape)
+    
+    for n in range(N):
+        for c in range(C):
+            for h in range(HH):
+                for w in range(WW):
+                    h_start = stride * h
+                    h_end = h_start + pool_height
+
+                    w_start = stride * w
+                    w_end = w_start + pool_width
+
+                    # get the pool window in the input x
+                    pool_window = x[n, c, h_start:h_end, w_start:w_end]
+                    
+                    m = np.max(pool_window)
+                    dx_window = np.where(pool_window == m, 1, 0)
+                    
+                    dx[n, c, h_start:h_end, w_start:w_end] += dx_window * dout[n, c, h, w]
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -492,17 +549,31 @@ def max_pool_backward(dout, cache):
 
 
 def svm_loss(x, y):
-  """
-  Computes the loss and gradient for binary SVM classification.
-  Inputs:
-  - x: Input data, of shape (N,) where x[i] is the score for the ith input.
-  - y: Vector of labels, of shape (N,) where y[i] is the label for x[i]
-  Returns a tuple of:
-  - loss: Scalar giving the loss
-  - dx: Gradient of the loss with respect to x
-  """
+    """
+    Computes the loss and gradient for binary SVM classification.
+    Inputs:
+    - x: Input data, of shape (N,) where x[i] is the score for the ith input.
+    - y: Vector of labels, of shape (N,) where y[i] is the label for x[i]
+    Returns a tuple of:
+    - loss: Scalar giving the loss
+    - dx: Gradient of the loss with respect to x
+    """
 
-  return loss, dx
+    x = x.reshape((-1,1))
+    y = y.reshape((-1,1))
+    N,_ = x.shape
+    
+    y_p = np.where(y == 1,1,-1)
+        
+    losses = np.maximum(0,1-(x*y_p))
+    loss = np.sum(losses)/N
+    dx = np.where(losses > 0, 1, 0)*(-y_p)/N
+    dx = dx.reshape((-1,))
+
+    return loss, dx
+
+def sigmoid(x):
+    return 1/(1+np.exp(-x))
 
 def logistic_loss(x, y):
     """
@@ -510,25 +581,30 @@ def logistic_loss(x, y):
     regression.
     Inputs:
     - x: Input data, of shape (N,) where x[i] is the logit for the ith input.
-    - y: Vector of labels, of shape (N,) where y[i] is the label for x[i]
+    - y: Vector of labels, of shape (N,) where y[i] is the label for x[i], labels = +-1
     Returns a tuple of:
     - loss: Scalar giving the loss
     - dx: Gradient of the loss with respect to x
     """
+    x = x.reshape((-1,))
+    y = y.reshape((-1,))
+    
+    N, = x.shape
+    
+    y_p = np.where(y == 1,1,0)
 
-    x = x.reshape((x.shape[0],1))
-    y =  y.reshape((y.shape[0],1))
-    ln2 = np.log(2)
-    loss = np.sum(np.log(1+np.exp(-y*x))/ln2)
-    
-    dx = (-y)/(ln2*np.exp(x*y)+ln2)
-    
+    p = sigmoid(x)
+    loss = -(y_p*np.log(p) + (1-y_p)*np.log(1-p))
+    loss = np.sum(loss)/N
+
+    dx = (1/N)*(p - y_p)
+        
     return loss, dx
 
-def softmax(x):
-    num = np.exp(x)
-    denom = np.sum(num)
-    return num/denom
+def softmax(a):
+    num = np.exp(a)
+    denom = np.sum(num, axis=1, keepdims=True)+1e-5
+    return num/(denom)
 
 def softmax_loss(x, y):
     """
@@ -542,14 +618,17 @@ def softmax_loss(x, y):
     - loss: Scalar giving the loss
     - dx: Gradient of the loss with respect to x
     """
-    y = y.reshape((y.shape[0],1))
+
+    eps = 1e-5
     
+    N,C = x.shape
     p = softmax(x)
-    N = x.shape[0]
-    
-    log_likelihood = y*np.log(p)
-    loss = -np.sum(log_likelihood) / N
-    
-    dx = np.zeros(x.shape)
+    llikelihood = -np.log(p[range(N),y] + eps)
+#     print(llikelihood)
+    loss = np.sum(llikelihood) / N
+
+    dx = p
+    dx[range(N),y] -= 1
+    dx = dx/N
     
     return loss, dx

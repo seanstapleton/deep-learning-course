@@ -1,4 +1,5 @@
 import numpy as np
+import pickle
 
 import optim
 
@@ -115,6 +116,12 @@ class Solver(object):
 
     self.print_every = kwargs.pop('print_every', 10)
     self.verbose = kwargs.pop('verbose', True)
+    self.load = kwargs.pop('load', None)
+    self.save_every =  kwargs.pop('save_every', self.print_every)
+    self.save_name = kwargs.pop('save_name', 'solver.pkl')
+    self.start = 0
+    
+        
 
     # Throw an error if there are extra keyword arguments
     if len(kwargs) > 0:
@@ -128,6 +135,35 @@ class Solver(object):
     self.update_rule = getattr(optim, self.update_rule)
 
     self._reset()
+    
+    if self.load:
+        pickle_in = open(self.load,"rb")
+        data_in = pickle.load(pickle_in)
+        self.model.params = data_in['params']
+        if 'start' in data_in:
+            self.start = data_in['start']
+        if 'epoch' in data_in:
+            self.epoch = data_in['epoch']
+        if 'train_acc_history' in data_in:
+            self.train_acc_history = data_in['train_acc_history']
+        if 'val_acc_history' in data_in:
+            self.val_acc_history = data_in['val_acc_history']
+        if 'best_val_acc' in data_in:
+            self.best_val_acc = data_in['best_val_acc']
+        if 'best_params' in data_in:
+            self.best_params = data_in['best_params']
+    
+  def _save(self, i):
+    data_to_save = {
+        'params': self.model.params,
+        'start': i,
+        'epoch': self.epoch,
+        'train_acc_history': self.train_acc_history,
+        'val_acc_history': self.val_acc_history,
+        'best_val_acc': self.best_val_acc,
+        'best_params': self.best_params
+    }
+    pickle.dump( data_to_save, open( self.save_name, "wb" ) )
 
 
   def _reset(self):
@@ -212,6 +248,7 @@ class Solver(object):
         y_pred.append(np.argmax(scores, axis=1))
       elif len(scores.shape) == 1:
         y_pred.append((scores > 0).astype(int))
+#         y_pred.append((scores > 0.5).astype(int))
     y_pred = np.hstack(y_pred)
     acc = np.mean(y_pred == y)
 
@@ -222,11 +259,12 @@ class Solver(object):
     """
     Run optimization to train the model.
     """
+    start = self.start
     num_train = self.X_train.shape[0]
     iterations_per_epoch = max(num_train // self.batch_size, 1)
     num_iterations = self.num_epochs * iterations_per_epoch
 
-    for t in range(num_iterations):
+    for t in range(self.start, num_iterations):
       self._step()
 
       # Maybe print training loss
@@ -241,6 +279,9 @@ class Solver(object):
         self.epoch += 1
         for k in self.optim_configs:
           self.optim_configs[k]['learning_rate'] *= self.lr_decay
+        
+      if t % self.save_every == 0:
+        self._save(t)
 
       # Check train and val accuracy on the first iteration, the last
       # iteration, and at the end of each epoch.
@@ -266,4 +307,4 @@ class Solver(object):
 
     # At the end of training swap the best params into the model
     self.model.params = self.best_params
-
+    return self.best_val_acc

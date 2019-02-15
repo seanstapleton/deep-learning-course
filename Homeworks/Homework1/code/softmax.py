@@ -42,7 +42,14 @@ class SoftmaxClassifier(object):
         # dictionary self.params, with fc weights                                  #
         # and biases using the keys 'W' and 'b'                                    #
         ############################################################################
-        pass
+        if hidden_dim:
+            self.params['W1'] = np.random.normal(scale=weight_scale, size=((input_dim,hidden_dim)))
+            self.params['b1'] = np.zeros((hidden_dim,))
+            self.params['W2'] = np.random.normal(scale=weight_scale, size=((hidden_dim, num_classes)))
+            self.params['b2'] = np.zeros((num_classes,))
+        else:
+            self.params['W1'] = np.random.normal(scale=weight_scale, size=((input_dim,num_classes)))
+            self.params['b1'] = np.zeros((num_classes,))
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -69,10 +76,21 @@ class SoftmaxClassifier(object):
         """
         scores = None
         ############################################################################
-        # TODO: Implement the forward pass for the one-layer net, computing the    #
+        # TODO: Implement the forward pass for the two-layer net, computing the    #
         # class scores for X and storing them in the scores variable.              #
         ############################################################################
-        pass
+        N = X.shape[0]
+        if 'W2' in self.params:
+            W1,b1 = self.params['W1'], self.params['b1']
+            W2,b2 = self.params['W2'], self.params['b2']
+            
+            scores,cache_1 = fc_forward(X,W1,b1)
+            scores,cache_relu = relu_forward(scores)
+            scores,cache_2 = fc_forward(scores,W2,b2)
+        else:
+            W1,b1 = self.params['W1'], self.params['b1']
+            scores,cache_1 = fc_forward(X,W1,b1)
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -83,7 +101,7 @@ class SoftmaxClassifier(object):
 
         loss, grads = 0, {}
         ############################################################################
-        # TODO: Implement the backward pass for the one-layer net. Store the loss  #
+        # TODO: Implement the backward pass for the two-layer net. Store the loss  #
         # in the loss variable and gradients in the grads dictionary. Compute data #
         # loss using softmax, and make sure that grads[k] holds the gradients for  #
         # self.params[k]. Don't forget to add L2 regularization!                   #
@@ -92,7 +110,32 @@ class SoftmaxClassifier(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        pass
+        if 'W2' in self.params:
+            loss, dout = softmax_loss(scores, y)
+            dx2,dw2,db2 = fc_backward(dout, cache_2)
+            da = relu_backward(dx2, cache_relu)
+            dx1,dw1,db1 = fc_backward(da, cache_1)
+            
+            reg_cost = np.sum(np.square(W1)) + np.sum(np.square(W2))
+            reg_cost = (1/dx1.shape[0])*self.reg
+            
+            loss += reg_cost
+
+            grads['W1'] = dw1 + self.params['W1']*reg_cost
+            grads['b1'] = db1
+            grads['W2'] = dw2 + self.params['W2']*reg_cost
+            grads['b2'] = db2
+        else:
+            loss, dout = softmax_loss(scores, y)
+            dx1,dw1,db1 = fc_backward(dout, cache_1)
+            
+            reg_cost = np.sum(np.square(W1))
+            reg_cost = (1/dx1.shape[0])*self.reg
+            
+            loss += reg_cost
+
+            grads['W1'] = dw1 + self.params['W1']*reg_cost
+            grads['b1'] = db1
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################

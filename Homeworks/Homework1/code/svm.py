@@ -36,7 +36,14 @@ class SVM(object):
     # weights and biases using the keys 'W1' and 'b1' and second layer weights #
     # and biases (if any) using the keys 'W2' and 'b2'.                        #
     ############################################################################
-    pass
+    if hidden_dim:
+        self.params['W1'] = np.random.normal(scale=weight_scale, size=((input_dim,hidden_dim)))
+        self.params['b1'] = np.zeros((hidden_dim,))
+        self.params['W2'] = np.random.normal(scale=weight_scale, size=((hidden_dim, 1)))
+        self.params['b2'] = np.zeros((1,))
+    else:
+        self.params['W1'] = np.random.normal(scale=weight_scale, size=((input_dim,1)))
+        self.params['b1'] = np.zeros((1,))
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
@@ -66,14 +73,21 @@ class SVM(object):
     # TODO: Implement the forward pass for the model, computing the            #
     # scores for X and storing them in the scores variable.                    #
     ############################################################################
-    pass
+    N = X.shape[0]
+    W1,b1 = self.params['W1'], self.params['b1']
+    scores,cache_1 = fc_forward(X,W1,b1)
+    if 'W2' in self.params:
+        W2,b2 = self.params['W2'], self.params['b2']
+        scores,cache_relu = relu_forward(scores)
+        scores,cache_2 = fc_forward(scores,W2,b2)
+    scores = scores.reshape((-1,))
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
 
     # If y is None then we are in test mode so just return scores
     if y is None:
-      return scores
+        return scores
     
     loss, grads = 0, {}
     ############################################################################
@@ -83,7 +97,33 @@ class SVM(object):
     # Don't forget to add L2 regularization.                                   #
     #                                                                          #
     ############################################################################
-    pass
+    loss, dout = svm_loss(scores, y)
+    dout = dout.reshape((-1,1))
+    reg_cost = 0
+    if 'W2' in self.params and self.reg:
+        w1_loss = np.sum(np.square(self.params['W1']))
+        w2_loss = np.sum(np.square(self.params['W2']))
+        reg_cost = (self.reg/N)*(w1_loss + w2_loss)
+        loss += reg_cost
+    elif self.reg:
+        reg_cost = (self.reg/N)*np.sum(np.square(self.params['W1']))
+        loss += reg_cost
+
+    if 'W2' in self.params:
+        dh2,dw2,db2 = fc_backward(dout, cache_2)
+        da = relu_backward(dh2, cache_relu)
+        dx1,dw1,db1 = fc_backward(da, cache_1)
+
+        grads['W1'] = dw1 + self.params['W1']*reg_cost
+        grads['b1'] = db1
+        grads['W2'] = dw2 + self.params['W2']*reg_cost
+        grads['b2'] = db2
+    else:
+        dx1,dw1,db1 = fc_backward(dout, cache_1)
+
+        grads['W1'] = dw1 + self.params['W1']*reg_cost
+        grads['b1'] = db1
+            
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################

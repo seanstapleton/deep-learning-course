@@ -47,12 +47,26 @@ class ConvNet(object):
     # hidden affine layer, and keys 'W3' and 'b3' for the weights and biases   #
     # of the output affine layer.                                              #
     ############################################################################
-    pass
+    C, H, W = input_dim
+    F, HH, WW = num_filters, filter_size, filter_size
+    
+    self.params['W1'] = np.random.normal(scale=weight_scale, size=(num_filters, C, filter_size,filter_size))
+#     conv_out_size = (F,H-HH+1,W-WW+1)
+    pool_sizes = {
+        'h': 1 + (H-HH+1 - 2)//2,
+        'w': 1 + (W-WW+1 - 2)//2
+    }
+    pool_out_size = F*pool_sizes['h']*pool_sizes['w']
+    
+    self.params['W2'] = np.random.normal(scale=weight_scale, size=(pool_out_size,hidden_dim))
+    self.params['b2'] = np.ones((hidden_dim,))
+    self.params['W3'] = np.random.normal(scale=weight_scale, size=(hidden_dim, num_classes))
+    self.params['b3'] = np.ones((num_classes,))
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
 
-    for k, v in self.params.iteritems():
+    for k, v in self.params.items():
       self.params[k] = v.astype(dtype)
      
  
@@ -62,7 +76,7 @@ class ConvNet(object):
     
     Input / output: Same API as TwoLayerNet in fc_net.py.
     """
-    W1, b1 = self.params['W1'], self.params['b1']
+    W1 = self.params['W1']
     W2, b2 = self.params['W2'], self.params['b2']
     W3, b3 = self.params['W3'], self.params['b3']
     
@@ -79,7 +93,13 @@ class ConvNet(object):
     # computing the class scores for X and storing them in the scores          #
     # variable.                                                                #
     ############################################################################
-    pass
+    N = X.shape[0]
+    X1,cache_1 = conv_forward(X,W1)
+    A1,cache_relu1 = relu_forward(X1)
+    Z1,cache_max_pool1 = max_pool_forward(A1,{ 'pool_height': 2, 'pool_width': 2, 'stride': 2 })
+    max_pool_shape = Z1.shape
+    X2,cache_2 = fc_forward(Z1.reshape((N,-1)), W2, b2)
+    scores,cache_3 = fc_forward(X2, W3, b3)
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
@@ -94,7 +114,23 @@ class ConvNet(object):
     # data loss using softmax, and make sure that grads[k] holds the gradients #
     # for self.params[k]. Don't forget to add L2 regularization!               #
     ############################################################################
-    pass
+    loss, dout = softmax_loss(scores, y)
+    reg_cost = np.sum(np.square(W3)) + np.sum(np.square(W2)) + np.sum(np.square(W1))
+    reg_cost = (1/N)*self.reg
+    loss += reg_cost
+    
+    dx3,dw3,db3 = fc_backward(dout, cache_3)
+    dx2,dw2,db2 = fc_backward(dx3, cache_2)
+    dz1 = max_pool_backward(dx2.reshape(max_pool_shape), cache_max_pool1)
+    da1 = relu_backward(dz1, cache_relu1)
+    dx1,dw1 = conv_backward(da1, cache_1)
+    
+    grads['W1'] = dw1 + self.params['W1']*reg_cost
+    grads['W2'] = dw2 + self.params['W2']*reg_cost
+    grads['b2'] = db2
+    grads['W3'] = dw3 + self.params['W3']*reg_cost
+    grads['b3'] = db3
+    
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
