@@ -62,20 +62,26 @@ def train_model(device, dataloaders, dataset_sizes, model, criterion, optimizer,
                 # forward
                 # track history if only in train
                 with torch.set_grad_enabled(phase == 'train'):
-                ####################################################################################
-                #                             START OF YOUR CODE                                   #
-                ####################################################################################
-                # Perform feedforward operation using model, get the labels using torch.max, and   #
-                # compule loss using the criterion function                                        #
-                ####################################################################################
-            
+                    ####################################################################################
+                    #                             START OF YOUR CODE                                   #
+                    ####################################################################################
+                    # Perform feedforward operation using model, get the labels using torch.max, and   #
+                    # compule loss using the criterion function                                        #
+                    ####################################################################################
+                
+                    outputs = model(inputs)
+                    _, preds = torch.max(outputs, 1)
+                    loss = criterion(outputs, labels)
+                
+                    # backward + optimize only if in training phase
 
-                # backward + optimize only if in training phase
-
-
-                ####################################################################################
-                #                             END OF YOUR CODE                                     #
-                ####################################################################################
+                    if phase == 'train':
+                        loss.backward()
+                        optimizer.step()
+                    
+                    ####################################################################################
+                    #                             END OF YOUR CODE                                     #
+                    ####################################################################################
                     
                 # statistics
                 running_loss += loss.item() * inputs.size(0)
@@ -133,6 +139,8 @@ def visualize_model(device, dataloaders, model, class_names, num_images=6):
             # Perform feedforward operation using model and get the labels using torch.max     #
             ####################################################################################
             
+            outputs = model(inputs)
+            _, preds = torch.max(outputs, 1)
 
             ####################################################################################
             #                             END OF YOUR CODE                                     #
@@ -160,7 +168,8 @@ def finetune(device, dataloaders, dataset_sizes, class_names):
     # Replace last layer in with a 2-label linear layer                                #
     ####################################################################################
     
-
+    model_ft.fc = nn.Linear(model_ft.fc.in_features, 2)
+    
     ####################################################################################
     #                             END OF YOUR CODE                                     #
     ####################################################################################
@@ -172,7 +181,8 @@ def finetune(device, dataloaders, dataset_sizes, class_names):
     # Set the criterion function for multi-class classification, and set the optimizer #
     ####################################################################################
 
-
+    criterion = nn.CrossEntropyLoss()
+    optimizer_ft = optim.SGD(model_ft.parameters(), lr=0.01)
 
     ####################################################################################
     #                             END OF YOUR CODE                                     #
@@ -201,7 +211,9 @@ def freeze(device, dataloaders, dataset_sizes, class_names):
     # Hint: go over all parameters and set requires_grad to False                      #
     ####################################################################################
     
-
+    for param in model_conv.parameters():
+        param.requires_grad = False
+    
     ####################################################################################
     #                             END OF YOUR CODE                                     #
     ####################################################################################
@@ -214,6 +226,7 @@ def freeze(device, dataloaders, dataset_sizes, class_names):
     ####################################################################################
     # Parameters of newly constructed modules have requires_grad=True by default
     
+    model_conv.fc = nn.Linear(model_conv.fc.in_features, 2)
 
     ####################################################################################
     #                             END OF YOUR CODE                                     #
@@ -227,7 +240,8 @@ def freeze(device, dataloaders, dataset_sizes, class_names):
     # Note: Make sure that the optimizer only updates the parameters of the last layer #
     ####################################################################################
 
-    
+    criterion = nn.CrossEntropyLoss()
+    optimizer_conv = optim.SGD(model_conv.fc.parameters(), lr=0.01)
 
     ####################################################################################
     #                             END OF YOUR CODE                                     #
