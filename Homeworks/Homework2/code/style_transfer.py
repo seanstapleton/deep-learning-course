@@ -42,7 +42,6 @@ def rescale(x):
 def rel_error(x,y):
     return np.max(np.abs(x - y) / (np.maximum(1e-8, np.abs(x) + np.abs(y))))
 
-
 # We provide this helper code which takes an image, a model (cnn), and returns a list of
 # feature maps, one per layer.
 def extract_features(x, cnn):
@@ -81,6 +80,7 @@ def content_loss(content_weight, content_current, content_target):
     Returns:
     - scalar content loss
     """
+    return content_weight*torch.norm(content_current - content_target, 2, 1)
     
 
 
@@ -127,8 +127,13 @@ def style_loss(feats, style_layers, style_targets, style_weights):
     """
     # Hint: you can do this with one for loop over the style layers, and should
     # not be very much code (~5 lines). You will need to use your gram_matrix function.
-
-
+    features = feats[style_layers]
+        
+    loss = 0
+    for i in range(len(style_layers)):
+        g = gram_matrix(feats[style_layers[i]])
+        loss += content_loss(style_weights[i], g, style_targets[i])
+    return loss
 
 def tv_loss(img, tv_weight):
     """
@@ -143,7 +148,9 @@ def tv_loss(img, tv_weight):
       for img weighted by tv_weight.
     """
     # Your implementation should be vectorized and not require any loops!
-
+    hse = torch.norm(img[:,:,:,1:] - img[:,:,:,:-1], 2, 1)
+    wse = torch.norm(img[:,:,1:,:] - img[:,:,:-1,:], 2, 1)
+    return tv_weight*(hse+wse)
 
 
 def style_transfer(content_image, style_image, image_size, style_size, content_layer, content_weight,
@@ -227,8 +234,11 @@ def style_transfer(content_image, style_image, image_size, style_size, content_l
         feats = extract_features(img_var, cnn)
         
         #TODO:Compute loss
-
-
+        loss = \
+            content_loss(content_weight, feats[content_layer], content_target) +\
+            style_loss(feats, style_layers, style_targets, style_weights) +\
+            tv_loss(img_var, tv_weight)
+        loss.backward()
 
         # Perform gradient descents on our image values
         if t == decay_lr_at:
