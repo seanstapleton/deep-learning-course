@@ -130,28 +130,52 @@ class CaptioningRNN(object):
         # defined above to store loss and gradients; grads[k] should give the      #
         # gradients for self.params[k].                                            #
         ############################################################################
+        
+        
 
         # Forward Pass
         # (1)
-        
+        h0, cache0 = fc_forward(features, W_proj, b_proj)
         # (2)
-        
+        z1, cache1 = word_embedding_forward(captions_in, W_embed)
+        N,T,D = z1.shape
+        z1 = np.transpose(z1,(1,0,2))
         # (3)
-        
+        if self.cell_type == 'rnn':
+            z2, cache2 = rnn_forward(z1, h0, Wx, Wh, b)
+        else:
+            z2, cache2 = lstm_forward(z1, h0, Wx, Wh, b)
+        _,_,H = z2.shape
+        z2 = np.transpose(z2,(1,0,2))
         # (4)
-        
+        z3, cache3 = temporal_fc_forward(z2, W_vocab, b_vocab)
         # (5)
-
+        loss, dout = temporal_softmax_loss(z3, captions_out, mask)
 
         # Gradients
         # (4)
+        dz3,dw3,db3 = temporal_fc_backward(dout, cache3)
         
+        dz3 = np.transpose(dz3, (1,0,2))
         # (3)
-        
+        if self.cell_type == 'rnn':
+            dz2, dh0, dWx, dWh, db = rnn_backward(dz3, cache2)
+        else:
+            dz2, dh0, dWx, dWh, db = lstm_backward(dz3, cache2)
+        dz2 = np.transpose(dz2, (1,0,2))
         # (2)
-        
+        dW_embed = word_embedding_backward(dz2, cache1)
         # (1)
-
+        dx,dW_proj,db_proj = fc_backward(dh0, cache0)
+        
+        grads['W_embed'] = dW_embed
+        grads['W_proj'] = dW_proj
+        grads['b_proj'] = db_proj
+        grads['Wx'] = dWx
+        grads['Wh'] = dWh
+        grads['b'] = db
+        grads['W_vocab'] = dw3
+        grads['b_vocab'] = db3
 
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -210,9 +234,24 @@ class CaptioningRNN(object):
         # functions; you'll need to call rnn_step_forward or lstm_step_forward in #
         # a loop.                                                                 #
         ###########################################################################
-
-
-
+        
+        prev_h,_ = fc_forward(features, W_proj, b_proj)
+        captions[:, 0] = self._start
+        prev_c = np.zeros(prev_h.shape)
+        
+        for t in range(1,max_length):
+            prev_words = captions[:,t-1]
+            z1,_ = word_embedding_forward(prev_words, W_embed)
+            z1 = z1.reshape((N,-1))
+            if self.cell_type == 'rnn':
+                prev_h,_ = rnn_step_forward(z1, prev_h, Wx, Wh, b)
+            else:
+                prev_h,prev_c,_ = lstm_step_forward(z1, prev_h, prev_c, Wx, Wh, b)
+            next_h = prev_h.reshape((N,1,-1))
+            z3,_ = temporal_fc_forward(next_h, W_vocab, b_vocab)
+            z3 = z3.reshape((N,-1))
+            captions[:,t:t+1] = np.argmax(z3,axis=1).reshape((N,-1))
+        
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################

@@ -180,7 +180,7 @@ print('db error: ', rel_error(db_num, db))
 
 
 
-#lstm_step_forward
+# lstm_step_forward
 np.random.seed(498)
 N, D, H = 3, 5, 4
 x = np.linspace(-0.1, 0.5, num=N * D).reshape(N, D)
@@ -203,11 +203,6 @@ correct_next_c = np.array([[-0.23621572, -0.15684323, -0.0689127,   0.02702961],
 print('\nTesting lstm_step_forward function:')
 print('next_h error: ', rel_error(next_h, correct_next_h))
 print('next_c error: ', rel_error(next_c, correct_next_c))
-
-
-
-
-
 
 
 #lstm_step_backward (dnext_h track)

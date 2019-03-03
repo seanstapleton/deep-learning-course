@@ -169,6 +169,7 @@ def finetune(device, dataloaders, dataset_sizes, class_names):
     ####################################################################################
     
     model_ft.fc = nn.Linear(model_ft.fc.in_features, 2)
+    model_ft = model_ft.to(device)
     
     ####################################################################################
     #                             END OF YOUR CODE                                     #
@@ -227,6 +228,7 @@ def freeze(device, dataloaders, dataset_sizes, class_names):
     # Parameters of newly constructed modules have requires_grad=True by default
     
     model_conv.fc = nn.Linear(model_conv.fc.in_features, 2)
+    model_conv = model_conv.to(device)
 
     ####################################################################################
     #                             END OF YOUR CODE                                     #

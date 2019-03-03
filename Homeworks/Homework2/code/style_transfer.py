@@ -80,7 +80,8 @@ def content_loss(content_weight, content_current, content_target):
     Returns:
     - scalar content loss
     """
-    return content_weight*torch.norm(content_current - content_target, 2, 1)
+    return content_weight*torch.sum((content_current - content_target)**2)
+#     return content_weight*torch.norm(content_current - content_target, 2, 1)
     
 
 
@@ -126,13 +127,12 @@ def style_loss(feats, style_layers, style_targets, style_weights):
     - style_loss: A PyTorch Variable holding a scalar giving the style loss.
     """
     # Hint: you can do this with one for loop over the style layers, and should
-    # not be very much code (~5 lines). You will need to use your gram_matrix function.
-    features = feats[style_layers]
-        
+    # not be very much code (~5 lines). You will need to use your gram_matrix function.        
     loss = 0
     for i in range(len(style_layers)):
         g = gram_matrix(feats[style_layers[i]])
-        loss += content_loss(style_weights[i], g, style_targets[i])
+#         loss += content_loss(style_weights[i], g, style_targets[i])
+        loss += style_weights[i] * torch.sum((g - style_targets[i])**2)
     return loss
 
 def tv_loss(img, tv_weight):
@@ -148,8 +148,10 @@ def tv_loss(img, tv_weight):
       for img weighted by tv_weight.
     """
     # Your implementation should be vectorized and not require any loops!
-    hse = torch.norm(img[:,:,:,1:] - img[:,:,:,:-1], 2, 1)
-    wse = torch.norm(img[:,:,1:,:] - img[:,:,:-1,:], 2, 1)
+    hse = torch.sum((img[:,:,:,1:] - img[:,:,:,:-1])**2)
+    wse = torch.sum((img[:,:,1:,:] - img[:,:,:-1,:])**2)
+#     hse = torch.norm(img[:,:,:,1:] - img[:,:,:,:-1], 2, 1)
+#     wse = torch.norm(img[:,:,1:,:] - img[:,:,:-1,:], 2, 1)
     return tv_weight*(hse+wse)
 
 
@@ -170,7 +172,6 @@ def style_transfer(content_image, style_image, image_size, style_size, content_l
     - tv_weight: weight of total variation regularization term
     - init_random: initialize the starting image to uniform random noise
     """
-
     dtype = torch.FloatTensor
     # Uncomment out the following line if you're on a machine with a GPU set up for PyTorch!
     # dtype = torch.cuda.FloatTensor
@@ -178,7 +179,7 @@ def style_transfer(content_image, style_image, image_size, style_size, content_l
     # Load the pre-trained SqueezeNet model.
     cnn = torchvision.models.squeezenet1_1(pretrained=True).features
     cnn.type(dtype)
-
+    
     # We don't want to train the model any further, so we don't want PyTorch to waste computation 
     # computing gradients on parameters we're never going to update.
     for param in cnn.parameters():
@@ -189,7 +190,7 @@ def style_transfer(content_image, style_image, image_size, style_size, content_l
     content_img_var = Variable(content_img.type(dtype))
     feats = extract_features(content_img_var, cnn)
     content_target = feats[content_layer].clone()
-
+    
     # Extract features for the style image
     style_img = preprocess(PIL.Image.open(style_image), size=style_size)
     style_img_var = Variable(style_img.type(dtype))
@@ -197,7 +198,7 @@ def style_transfer(content_image, style_image, image_size, style_size, content_l
     style_targets = []
     for idx in style_layers:
         style_targets.append(gram_matrix(feats[idx].clone()))
-
+        
     # Initialize output image to content image or nois
     if init_random:
         img = torch.Tensor(content_img.size()).uniform_(0, 1)

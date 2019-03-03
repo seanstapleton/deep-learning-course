@@ -5,7 +5,6 @@ networks.
 
 import numpy as np
 
-
 def rnn_step_forward(x, prev_h, Wx, Wh, b):
     """
     Run the forward pass for a single timestep of a vanilla RNN that uses a tanh
@@ -418,6 +417,11 @@ def temporal_fc_forward(x, w, b):
     - out: Output data of shape (N, T, M)
     - cache: Values needed for the backward pass
     """
+    
+    out = np.matmul(x,w) + b
+    cache = (x,w,b)
+    
+    return out, cache
 
 
 def temporal_fc_backward(dout, cache):
@@ -431,8 +435,19 @@ def temporal_fc_backward(dout, cache):
     - dw: Gradient of weights, of shape (D, M)
     - db: Gradient of biases, of shape (M,)
     """
+    
+    x,w,b = cache
 
+    dx = np.matmul(dout, np.transpose(w))
+    dw = np.einsum("tnd,tnm->dm", x, dout)
+    db = np.sum(dout, axis=(0,1))
 
+    return dx,dw,db
+
+def softmax(a):
+    num = np.exp(a)
+    denom = np.sum(num, axis=1, keepdims=True)+1e-5
+    return num/(denom)
 
 def temporal_softmax_loss(x, y, mask):
     """
@@ -457,6 +472,23 @@ def temporal_softmax_loss(x, y, mask):
     - loss: Scalar giving loss
     - dx: Gradient of loss with respect to scores x.
     """
+    
+    N,T,V = x.shape
+    x_p = x.reshape((-1,V))
+    y_p = y.reshape((N*T,))
+    eps = 1e-5
+    
+    p = softmax(x_p)
+    llikelihood = -np.log(p[range(N*T),y_p] + eps)
+    loss = np.sum(mask.reshape((N*T,))*llikelihood)/N
+    
+    dx = p
+    dx[range(N*T),y_p] -= 1
+    dx = dx*mask.reshape((N*T,1))
+    dx = dx/N
+    
+    dx = dx.reshape((N,T,V))
 
+    return loss,dx
 
 
