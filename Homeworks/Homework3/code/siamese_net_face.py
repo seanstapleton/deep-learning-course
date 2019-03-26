@@ -84,10 +84,52 @@ class SiameseNetworkDataset(Dataset):
 class SiameseNetwork(nn.Module):
     def __init__(self):
         super(SiameseNetwork, self).__init__()
-        #TODO: design the architecture
+        # TODO: design the architecture
+        self.conv1 = nn.Conv2d(1,8,3,padding=1)
+        self.maxPool1 = nn.MaxPool2d(2)
+        # ReLU
+        self.bn1 = nn.BatchNorm2d(8)
+        self.conv2 = nn.Conv2d(8,16,3,padding=1)
+        self.maxPool2 = nn.MaxPool2d(2)
+        # ReLU
+        self.bn2 = nn.BatchNorm2d(16)
+        self.conv3 = nn.Conv2d(16,32,3,padding=1)
+        self.maxPool3 = nn.MaxPool2d(2)
+        # ReLU
+        self.bn3 = nn.BatchNorm2d(32)
+        self.fc1 = nn.Linear(4608, 1024)
+        # ReLU
+        self.fc2 = nn.Linear(1024, 512)
+        # ReLU
+        self.fc3 = nn.Linear(512, 8)
 
     def forward_once(self, x):
-        #TODO: implement the forward pass to get features for input image
+        #TODO: implement the forward pass to get features for input image        
+        z1 = self.conv1(x)
+        m1 = self.maxPool1(z1)
+        a1 = F.relu(m1)
+        a1 = self.bn1(a1)
+                
+        z2 = self.conv2(a1)
+        m2 = self.maxPool2(z2)
+        a2 = F.relu(m2)
+        a2 = self.bn2(a2)
+                
+        z3 = self.conv3(a2)
+        m3 = self.maxPool3(z3)
+        a3 = F.relu(m3)
+        a3 = self.bn3(a3)
+
+        z4 = self.fc1(a3.view(a3.shape[0], -1))
+        a4 = F.relu(z4)
+                
+        z5 = self.fc2(a4)
+        a5 = F.relu(z5)
+        
+        z6 = self.fc3(a5)
+        
+        return z6
+        
 
     def forward(self, input1, input2):
         output1 = self.forward_once(input1)
@@ -107,7 +149,11 @@ class ContrastiveLoss(torch.nn.Module):
 
     def forward(self, output1, output2, label):
         #TODO: argument output1 is f(x1), output2 is f(x2)
-        #calculate the contrasive loss and return it
+        # calculate the contrastive loss and return it
+        euc_distances = F.pairwise_distance(output1, output2).view(-1,1)
+        loss = (1-label)*(euc_distances**2) + label*(((self.margin - euc_distances).clamp(min=0))**2)
+        loss = torch.mean(loss)
+        return loss
 
 
 def evaluate(dataiter, net, split, device):
