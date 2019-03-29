@@ -19,33 +19,16 @@ class CVAE(nn.Module):
         self.latent_size = latent_size
         self.units = 400
 
-
-        ######################################################
-        ###              START OF YOUR CODE                ###
-        ######################################################
-        ### Define a three layer neural network architecture #
-        ### for the recognition_model                        #
-        ######################################################
-
-        ######################################################
-        ###               END OF YOUR CODE                 ###
-        ######################################################
-
-
-
-
-        ######################################################
-        ###              START OF YOUR CODE                ###
-        ######################################################
-        ### Define a three layer neural network architecture #
-        ### for the generation_model                         #
-        ######################################################
-
-        ######################################################
-        ###               END OF YOUR CODE                 ###
-        ######################################################
-
-
+        self.fc1  = nn.Linear(input_size + class_size, self.units)
+        self.fc2 = nn.Linear(self.units, self.units)
+        self.fc3 = nn.Linear(self.units, self.units)
+        self.layer_mu = nn.Linear(self.units, latent_size)
+        self.layer_logvar = nn.Linear(self.units, latent_size)
+        
+        self.fc4 = nn.Linear(latent_size + class_size, self.units)
+        self.fc5 = nn.Linear(self.units, self.units)
+        self.fc6 = nn.Linear(self.units, self.units)
+        self.layer_output = nn.Linear(self.units, input_size)
 
     def recognition_model(self, x, c):
         """
@@ -61,12 +44,20 @@ class CVAE(nn.Module):
         - logvar PyTorch Variable of shape (batch_size, latent_size) for the posterior
           variance in log space
         """
-        ###########################
-        ######### TO DO ###########
-        ###########################
-        mu = None
-        logvar = None
-        return mu, logvar
+        
+        x_cat = torch.cat([x, c], dim=1)
+        z1 = self.fc1(x_cat)
+        a1 = F.relu(z1)
+        
+        z2 = self.fc2(a1)
+        a2 = F.relu(z2)
+        
+        z3 = self.fc3(a2)
+        a3 = F.relu(z3)
+        
+        z_mu = self.layer_mu(a3)
+        z_var = self.layer_logvar(a3)
+        return z_mu, z_var
 
 
     def reparametrize(self, mu, logvar):
@@ -86,10 +77,19 @@ class CVAE(nn.Module):
         Returns:
         - x_hat: PyTorch Variable of shape (batch_size, input_size) for the generated data
         """
-        ###########################
-        ######### TO DO ###########
-        ###########################
-        x_hat = None
+        x_cat = torch.cat([z, c], dim=1)
+        z4 = self.fc4(x_cat)
+        a4 = F.relu(z4)
+        
+        z5 = self.fc5(a4)
+        a5 = F.relu(z5)
+        
+        z6 = self.fc6(a5)
+        a6 = F.relu(z6)
+        
+        z_out = self.layer_output(a6)
+        x_hat = F.sigmoid(z_out)
+
         return x_hat
 
     def forward(self, x, c):
@@ -107,12 +107,10 @@ class CVAE(nn.Module):
         - logvar: PyTorch Variable of shape (batch_size, latent_size)
                   for the posterior logvar
         """
-        ###########################
-        ######### TO DO ###########
-        ###########################
-        x_hat = None
-        mu = None
-        logvar = None
+    
+        mu, logvar = self.recognition_model(x.view(-1, 28*28), c)
+        z = self.reparametrize(mu, logvar)
+        x_hat = self.generation_model(z, c)
         return x_hat, mu, logvar
 
 
@@ -163,11 +161,9 @@ def loss_function(x_hat, x, mu, logvar):
     Returns:
     - loss: PyTorch Variable containing the (scalar) loss for the negative lowerbound.
     """
-    ###########################
-    ######### TO DO ###########
-    ###########################
-    loss = None
-    return loss
+    first_loss = F.binary_cross_entropy(x_hat, x.view(-1, 28*28), size_average=False)
+    D_kl = -(1/2)*torch.sum(1 + logvar - (mu**2) - logvar.exp())
+    return (first_loss+D_kl)/x.shape[0]
 
 
 def main():
@@ -199,7 +195,7 @@ def main():
     c = torch.eye(num_classes, num_classes) # [one hot labels for 0-9]
     c = to_var(c, use_cuda)
     z = to_var(torch.randn(num_classes, latent_size), use_cuda)
-    samples = model.generative_model(z, c).data.cpu().numpy()
+    samples = model.generation_model(z, c).data.cpu().numpy()
 
     fig = plt.figure(figsize=(10, 1))
     gs = gridspec.GridSpec(1, 10)

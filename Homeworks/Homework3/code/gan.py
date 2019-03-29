@@ -95,7 +95,7 @@ class Unflatten(nn.Module):
 
 def initialize_weights(m):
     if isinstance(m, nn.Linear) or isinstance(m, nn.ConvTranspose2d):
-        init.xavier_uniform(m.weight.data)
+        init.xavier_uniform_(m.weight.data)
 
 
 def sample_noise(batch_size, dim):
@@ -113,7 +113,7 @@ def sample_noise(batch_size, dim):
     ###########################
     ######### TO DO ###########
     ###########################
-    random_noise = None
+    random_noise = torch.FloatTensor(batch_size, dim).uniform_(-1, 1)
     return random_noise
 
 
@@ -137,6 +137,16 @@ def build_discriminator(batch_size):
         ######### TO DO ###########
         ###########################
         Unflatten(batch_size, 1, 28, 28),
+        nn.Conv2d(1, 32, 5, stride=1),
+        nn.LeakyReLU(inplace=True),
+        nn.MaxPool2d(2,stride=2),
+        nn.Conv2d(32,64,5, stride=1),
+        nn.LeakyReLU(inplace=True),
+        nn.MaxPool2d(2, stride=2),
+        Flatten(),
+        nn.Linear(4*4*64, 4*4*64),
+        nn.LeakyReLU(inplace=True),
+        nn.Linear(4*4*64, 1)
     )
 
 
@@ -163,6 +173,19 @@ def build_generator(batch_size, noise_dim):
         ###########################
         ######### TO DO ###########
         ###########################
+        nn.Linear(noise_dim, 1024),
+        nn.ReLU(),
+        nn.BatchNorm1d(1024),
+        nn.Linear(1024, 7*7*128),
+        nn.ReLU(),
+        nn.BatchNorm1d(7*7*128),
+        Unflatten(batch_size, 128, 7, 7),
+        nn.ConvTranspose2d(128, 64, 4, stride=2, padding=1),
+        nn.ReLU(),
+        nn.BatchNorm2d(64),
+        nn.ConvTranspose2d(64, 1, 4, stride=2, padding=1),
+        nn.Tanh(),
+        Flatten()
     )
 
 
@@ -180,7 +203,7 @@ def get_optimizer(model):
     ###########################
     ######### TO DO ###########
     ###########################
-    optimizer = None
+    optimizer = optim.Adam(model.parameters(), betas=(0.5, 0.999))
     return optimizer
 
 
@@ -202,8 +225,9 @@ def bce_loss(input, target):
     ###########################
     ######### TO DO ###########
     ###########################
-    loss = None
-    return loss
+    neg_abs = - input.abs()
+    loss = input.clamp(min=0) - input * target + (1 + neg_abs.exp()).log()
+    return loss.mean()
 
 
 def discriminator_loss(logits_real, logits_fake, dtype):
@@ -221,8 +245,10 @@ def discriminator_loss(logits_real, logits_fake, dtype):
     ###########################
     ######### TO DO ###########
     ###########################
-    loss = None
-    return loss
+    labels = Variable(torch.ones(logits_real.shape[0])).type(dtype)
+    real_loss = bce_loss(logits_real, labels)
+    fake_loss = bce_loss(logits_fake, 1-labels)
+    return real_loss + fake_loss
 
 
 def generator_loss(logits_fake, dtype):
@@ -238,9 +264,8 @@ def generator_loss(logits_fake, dtype):
     """
     ###########################
     ######### TO DO ###########
-    ###########################
-    loss = None
-    return loss
+    labels = Variable(torch.ones(logits_fake.shape[0])).type(dtype)
+    return bce_loss(logits_fake, labels)
 
 
 def run_a_gan(D, G, D_solver, G_solver, discriminator_loss, generator_loss,
@@ -290,8 +315,8 @@ def run_a_gan(D, G, D_solver, G_solver, discriminator_loss, generator_loss,
                 print('Iter: {}, D: {:.4}, G:{:.4}'.format(
                     iter_count,d_total_error.data,g_error.data))
                 imgs_numpy = fake_images.data.cpu().numpy()
-                show_images(imgs_numpy[0:16])
-                plt.pause(1.0)
+#                 show_images(imgs_numpy[0:16])
+#                 plt.pause(1.0)
                 print()
             iter_count += 1
 
